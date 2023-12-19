@@ -960,8 +960,6 @@ static void player_update(player_t * self) {
 	float brake = max(state.gamepad->left_trigger, (float) kgfw_input_key(KGFW_KEY_S));
 	float gas = max(state.gamepad->right_trigger, (float) kgfw_input_key(KGFW_KEY_W));
 
-	kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%f %f", state.gamepad->left_trigger, state.gamepad->right_trigger);
-
 	vec3_scale(movement, normal, -move_speed * (gas - (brake / 6)));
 
 	vec3 drag;
@@ -982,8 +980,6 @@ static void player_update(player_t * self) {
 	self->camera->focus[1] = self->entity->transform.pos[1] + 0.5f;
 	self->camera->focus[2] = self->entity->transform.pos[2];
 	vec4 cam_pos = { -sinf(self->entity->transform.rot[1] * 3.141592f / 180.0f) * 2, 1.33f, cosf(self->entity->transform.rot[1] * 3.141592f / 180.0f) * 2, 1 };
-
-	kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%f %f %f %f", cam_pos[0], cam_pos[1], cam_pos[2], cam_pos[3]);
 
 	self->camera->fov = state.settings.fov + vec3_len(self->velocity) * 10;
 
