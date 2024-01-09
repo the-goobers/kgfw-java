@@ -9,6 +9,7 @@
 #include "kgfw/ktga/ktga.h"
 #include "kgfw/koml/koml.h"
 #include "kgfw/kobj/kobj.h"
+#include "kgfw/systems/kgfw_sys_ui.h"
 #ifndef KGFW_WINDOWS
 #include <unistd.h>
 #endif
@@ -30,6 +31,11 @@ struct {
 	} settings;
 
 	kgfw_gamepad_t * gamepad;
+
+	struct {
+		unsigned int width;
+		unsigned int height;
+	} board;
 } static state = {
 	{ 0 },
 	{
@@ -51,6 +57,11 @@ struct {
 	},
 
 	.gamepad = NULL,
+
+	.board = {
+		.width = 9,
+		.height = 9,
+	},
 };
 
 struct {
@@ -67,6 +78,16 @@ struct {
 #define STORAGE_MAX_MESHES 64
 #define EVALUATION_MAX_CYCLES 100
 
+typedef struct sudoku {
+	kgfw_entity_t * entity;
+	unsigned int number;
+
+	struct sudoku * right;
+	struct sudoku * left;
+	struct sudoku * up;
+	struct sudoku * down;
+} sudoku_t;
+
 struct {
 	ktga_t textures[STORAGE_MAX_TEXTURES];
 	unsigned long long int textures_count;
@@ -74,6 +95,7 @@ struct {
 	kgfw_graphics_mesh_t meshes[STORAGE_MAX_MESHES];
 	unsigned long long int meshes_count;
 	kgfw_hash_t mesh_hashes[STORAGE_MAX_MESHES];
+	sudoku_t * sudokus;
 } static storage = {
 	{ 0 },
 	0,
@@ -219,83 +241,85 @@ int main(int argc, char ** argv) {
 		kgfw_logf(KGFW_LOG_SEVERITY_INFO, "player entity creation failure");
 		return 99;
 	}
-	kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "p %p", player);
 
-	player_t * player_component = NULL;
-	kgfw_uuid_t pc_id = KGFW_ECS_INVALID_ID;
-	{
-		player_t p = {
-			.update = player_update,
-			.start = player_start,
-			.destroy = player_destroy,
-			.instance_id = 0,
-			.type_id = 0,
-			.entity = NULL,
-			.camera = NULL,
-		};
-
-		pc_id = kgfw_component_construct("player", sizeof(p), &p, 0);
-		if (pc_id == KGFW_ECS_INVALID_ID) {
-			return 99;
-		}
-
-		player_component = kgfw_entity_attach_component(player, pc_id);
-		player_component->camera = &state.camera;
-		
-		kgfw_graphics_mesh_t * m = mesh_get("forklift");
-		if (m == NULL) {
-			kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "failed to load car obj");
-			return 69420;
-		}
-		player_component->car = kgfw_graphics_mesh_new(m, NULL);
-
-		ktga_t * tga = texture_get("forklift");
-		kgfw_graphics_texture_t tex = {
-			.bitmap = tga->bitmap,
-			.width = tga->header.img_w,
-			.height = tga->header.img_h,
-			.fmt = KGFW_GRAPHICS_TEXTURE_FORMAT_BGRA,
-			.u_wrap = KGFW_GRAPHICS_TEXTURE_WRAP_CLAMP,
-			.v_wrap = KGFW_GRAPHICS_TEXTURE_WRAP_CLAMP,
-			.filtering = KGFW_GRAPHICS_TEXTURE_FILTERING_NEAREST,
-		};
-		kgfw_graphics_mesh_texture(player_component->car, &tex, KGFW_GRAPHICS_TEXTURE_USE_COLOR);
+	storage.sudokus = malloc(sizeof(sudoku_t) * state.board.width * state.board.height);
+	if (storage.sudokus == NULL) {
+		kgfw_logf(KGFW_LOG_SEVERITY_ERROR, "failed to malloc sudoku board");
+		return 99;
 	}
 
-	kgfw_graphics_mesh_node_t * racetrack = NULL;
-	{
-		kgfw_graphics_mesh_t * m = mesh_get("racetrack");
-		if (m == NULL) {
-			kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "failed to load test obj");
-			goto skip_load_m;
+	for (unsigned int i = 0; i < state.board.width * state.board.height; ++i) {
+		storage.sudokus[i].entity = kgfw_entity_new(NULL);
+		if (storage.sudokus[i].entity == NULL) {
+			kgfw_logf(KGFW_LOG_SEVERITY_INFO, "sudoku %u creation failure", i);
+			return 100;
 		}
-		kgfw_graphics_mesh_node_t * node = kgfw_graphics_mesh_new(m, NULL);
+		storage.sudokus[i].number = i % state.board.width + 1;
 
-		/*ktga_t * tga = texture_get("racetrack");
-		kgfw_graphics_texture_t tex = {
-			.bitmap = tga->bitmap,
-			.width = tga->header.img_w,
-			.height = tga->header.img_h,
-			.fmt = KGFW_GRAPHICS_TEXTURE_FORMAT_BGRA,
-			.u_wrap = KGFW_GRAPHICS_TEXTURE_WRAP_CLAMP,
-			.v_wrap = KGFW_GRAPHICS_TEXTURE_WRAP_CLAMP,
-			.filtering = KGFW_GRAPHICS_TEXTURE_FILTERING_NEAREST,
-		};
-		kgfw_graphics_mesh_texture(node, &tex, KGFW_GRAPHICS_TEXTURE_USE_COLOR);*/
-		racetrack = node;
-	skip_load_m:;
+		if (i < state.board.width * state.board.height - 1 && i % state.board.width != state.board.width - 1) {
+			storage.sudokus[i].right = &storage.sudokus[i + 1];
+		} else {
+			storage.sudokus[i].right = NULL;
+		}
+		if (i < state.board.width * (state.board.height - 1)) {
+			storage.sudokus[i].down = &storage.sudokus[i + state.board.width];
+		} else {
+			storage.sudokus[i].down = NULL;
+		}
+		if (i >= 1 && i % state.board.width != 0) {
+			storage.sudokus[i].left = &storage.sudokus[i - 1];
+		} else {
+			storage.sudokus[i].left = NULL;
+		}
+		if (i >= state.board.width) {
+			storage.sudokus[i].up = &storage.sudokus[i - state.board.width];
+		} else {
+			storage.sudokus[i].up = NULL;
+		}
 	}
 
-	kgfw_input_update();
-	state.gamepad = kgfw_input_gamepad_get(0);
-	if (state.gamepad == NULL) {
-		kgfw_logf(KGFW_LOG_SEVERITY_WARN, "no gamepad found");
-		state.gamepad = kgfw_input_gamepad_get(1);
+	for (unsigned int i = 0; i < state.board.height; ++i) {
+		kgfw_logf(
+			KGFW_LOG_SEVERITY_DEBUG, "%u %u %u %u %u %u %u %u %u",
+			storage.sudokus[i * state.board.width + 0].number,
+			storage.sudokus[i * state.board.width + 1].number,
+			storage.sudokus[i * state.board.width + 2].number,
+			storage.sudokus[i * state.board.width + 3].number,
+			storage.sudokus[i * state.board.width + 4].number,
+			storage.sudokus[i * state.board.width + 5].number,
+			storage.sudokus[i * state.board.width + 6].number,
+			storage.sudokus[i * state.board.width + 7].number,
+			storage.sudokus[i * state.board.width + 8].number
+		);
 	}
-	state.gamepad->deadzone.lx = 0.20f;
-	state.gamepad->deadzone.ly = 0.20f;
-	state.gamepad->deadzone.rx = 0.20f;
-	state.gamepad->deadzone.ry = 0.20f;
+
+	for (unsigned int i = 0; i < state.board.width * state.board.height; ++i) {
+		kgfw_logf(
+			KGFW_LOG_SEVERITY_DEBUG, "%p, %p %p %p %p",
+			&storage.sudokus[i],
+			storage.sudokus[i].right, storage.sudokus[i].left,
+			storage.sudokus[i].up, storage.sudokus[i].down
+		);
+	}
+
+	sudoku_t * piece = &storage.sudokus[0];
+	while (piece != NULL) {
+			kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%p %u", piece, piece->number);
+		while (piece->right != NULL) {
+			piece = piece->right;
+			kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%p %u", piece, piece->number);
+		}
+		piece = piece->down;
+		if (piece == NULL) {
+			break;
+		}
+		kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%p %u", piece, piece->number);
+		while (piece->left != NULL) {
+			piece = piece->left;
+			kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%p %u", piece, piece->number);
+		}
+		piece = piece->down;
+	}
 
 	while (!state.window.closed && !state.exit) {
 		kgfw_time_start();
@@ -326,14 +350,6 @@ int main(int argc, char ** argv) {
 		kgfw_ecs_update();
 
 		kgfw_input_update();
-		if (!state.gamepad->status.connected) {
-			kgfw_gamepad_t * g = kgfw_input_gamepad_get(0);
-			if (g == NULL) {
-				//kgfw_logf(KGFW_LOG_SEVERITY_WARN, "no controllers connected");
-			} else {
-				state.gamepad = g;
-			}
-		}
 
 		kgfw_audio_update();
 		kgfw_time_end();
@@ -346,7 +362,6 @@ int main(int argc, char ** argv) {
 	kgfw_console_deinit();
 	meshes_cleanup();
 	textures_cleanup();
-	//kgfw_ecs_cleanup();
 	kgfw_graphics_deinit();
 	kgfw_audio_deinit();
 	kgfw_window_destroy(&state.window);
@@ -920,91 +935,13 @@ static int game_command(int argc, char ** argv) {
 
 /* components */
 static void player_start(player_t * self) {
-	self->entity->transform.pos[1] = 2;
-
 	return;
 }
 
 static void player_update(player_t * self) {
-	if (!state.input) {
-		return;
-	}
-
-	float move_speed = state.settings.movement;
-	float move_fast_speed = state.settings.movement * 5.0f;
-	float move_slow_speed = state.settings.movement / 5.0f;
-	float look_sensitivity = state.settings.arrow_speed;
-	float look_slow_sensitivity = state.settings.arrow_speed / 4.0f;
-	float mouse_sensitivity = state.settings.mouse_speed;
-	float jump_force = state.settings.jump_force;
-	float delta = kgfw_time_delta();
-	float c_forcedrag = 0.925f;
-	float c_drag = 0.99f;
-
-	vec3 up;
-	vec3 right;
-	vec3 forward;
-
-	up[0] = 0; up[1] = 1; up[2] = 0;
-	right[0] = 0; right[1] = 0; right[2] = 0;
-	forward[0] = -sinf(self->entity->transform.rot[1] * 3.141592f / 180.0f); forward[1] = 0; forward[2] = cosf(self->entity->transform.rot[1] * 3.141592f / 180.0f);
-	vec3_mul_cross(right, up, forward);
-
-	vec3 t = { self->velocity[0] * forward[0], self->velocity[1] * forward[1], self->velocity[2] * forward[2] };
-	self->entity->transform.rot[1] += state.settings.gamepad_sensitivity * 20 * state.gamepad->left_stick_x * (vec3_len(t) + 0.05f) * 4 * delta;
-	self->entity->transform.rot[1] += (kgfw_input_key(KGFW_KEY_D) - kgfw_input_key(KGFW_KEY_A)) * 200 * (vec3_len(t) + 0.05f) * 4 * delta;
-	//self->entity->transform.rot[0] += state.settings.gamepad_sensitivity * 20 * delta * state.gamepad->right_stick_y;
-
-	vec3 normal;
-	vec3_norm(normal, forward);
-	vec3 movement;
-
-	float brake = max(state.gamepad->left_trigger, (float) kgfw_input_key(KGFW_KEY_S));
-	float gas = max(state.gamepad->right_trigger, (float) kgfw_input_key(KGFW_KEY_W));
-
-	vec3_scale(movement, normal, -move_speed * (gas - (brake / 6)));
-
-	vec3 drag;
-	memcpy(&drag, &movement, sizeof(vec3));
-	vec3_scale(drag, drag, -c_forcedrag);
-
-	vec3 fin;
-	vec3_add(fin, movement, drag);
-	vec3_scale(fin, fin, delta);
-
-	vec3_add(self->velocity, self->velocity, fin);
-	vec3_scale(self->velocity, self->velocity, c_drag);
-	vec3_scale(self->velocity, self->velocity, 1 - (brake / 100));
-
-	vec3_add(self->entity->transform.pos, self->entity->transform.pos, self->velocity);
-
-	self->camera->focus[0] = self->entity->transform.pos[0];
-	self->camera->focus[1] = self->entity->transform.pos[1] + 0.5f;
-	self->camera->focus[2] = self->entity->transform.pos[2];
-	vec4 cam_pos = { -sinf(self->entity->transform.rot[1] * 3.141592f / 180.0f) * 2, 1.33f, cosf(self->entity->transform.rot[1] * 3.141592f / 180.0f) * 2, 1 };
-
-	self->camera->fov = state.settings.fov + vec3_len(self->velocity) * 10;
-
-	self->camera->pos[0] = self->entity->transform.pos[0] + cam_pos[0] - self->velocity[0] * 10;
-	self->camera->pos[1] = self->entity->transform.pos[1] + cam_pos[1] - self->velocity[1] * 10;
-	self->camera->pos[2] = self->entity->transform.pos[2] + cam_pos[2] - self->velocity[2] * 10;
-	self->camera->rot[0] = self->entity->transform.rot[0];
-	self->camera->rot[1] = self->entity->transform.rot[1];
-	self->camera->rot[2] = self->entity->transform.rot[2];
-
-	self->car->transform.pos[0] = self->entity->transform.pos[0];
-	self->car->transform.pos[1] = self->entity->transform.pos[1];
-	self->car->transform.pos[2] = self->entity->transform.pos[2];
-
-	self->car->transform.rot[0] = self->entity->transform.rot[0];
-	self->car->transform.rot[1] = fmod(-self->entity->transform.rot[1], 360);
-	self->car->transform.rot[2] = self->entity->transform.rot[2];
-
-	if (kgfw_input_gamepad_pressed(state.gamepad, KGFW_GAMEPAD_LBUMPER)) {
-		self->camera->rot[1] = fmod(self->camera->rot[1] + 180, 360);
-	}
+	return;
 }
 
-void player_destroy(player_t * self) {
+static void player_destroy(player_t * self) {
 	return;
 }
