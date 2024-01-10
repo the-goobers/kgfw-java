@@ -1,5 +1,3 @@
-#define max(a, b) ((a) > (b) ? (a) : (b))
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,7 +7,7 @@
 #include "kgfw/ktga/ktga.h"
 #include "kgfw/koml/koml.h"
 #include "kgfw/kobj/kobj.h"
-#include "kgfw/systems/kgfw_sys_ui.h"
+#include "kgfw/kgfw_sys_ui.h"
 #ifndef KGFW_WINDOWS
 #include <unistd.h>
 #endif
@@ -36,13 +34,16 @@ struct {
 		unsigned int width;
 		unsigned int height;
 	} board;
+	struct sudoku * selected;
+	kgfw_graphics_mesh_node_t * selector;
+	kgfw_graphics_texture_t textures[10];
 } static state = {
 	{ 0 },
 	{
 		{ 0, 0, 5 },
 		{ 0, 0, 0 },
 		{ 1, 1 },
-		90, 0.01f, 1000.0f, 1.3333f, 0, 1,
+		90, 0.01f, 1000.0f, 1.3333f, 1, 0,
 		{ 0, 0, 0 },
 	},
 	1, 0,
@@ -62,6 +63,8 @@ struct {
 		.width = 9,
 		.height = 9,
 	},
+	.selected = NULL,
+	.selector = NULL,
 };
 
 struct {
@@ -80,6 +83,7 @@ struct {
 
 typedef struct sudoku {
 	kgfw_entity_t * entity;
+	kgfw_sys_ui_component_t * ui_comp;
 	unsigned int number;
 
 	struct sudoku * right;
@@ -96,6 +100,7 @@ struct {
 	unsigned long long int meshes_count;
 	kgfw_hash_t mesh_hashes[STORAGE_MAX_MESHES];
 	sudoku_t * sudokus;
+	unsigned int * solutions;
 } static storage = {
 	{ 0 },
 	0,
@@ -121,28 +126,7 @@ static int exit_command(int argc, char ** argv);
 static int game_command(int argc, char ** argv);
 
 /* components */
-static void test_start(kgfw_component_t * self);
-static void test_update(kgfw_component_t * self);
-static void test_destroy(kgfw_component_t * self);
-
-typedef struct player {
-	void (*update)(struct player * self);
-	void (*start)(struct player * self);
-	void (*destroy)(struct player * self);
-	/* identifier for component instance */
-	kgfw_uuid_t instance_id;
-	/* id for the component type */
-	kgfw_uuid_t type_id;
-	struct kgfw_entity * entity;
-
-	kgfw_camera_t * camera;
-	kgfw_graphics_mesh_node_t * car;
-	vec3 velocity;
-} player_t;
-
-static void player_start(player_t * self);
-static void player_update(player_t * self);
-static void player_destroy(player_t * self);
+static void click(kgfw_sys_ui_component_t * self, float x, float y);
 
 int main(int argc, char ** argv) {
 	kgfw_log_register_callback(kgfw_log_handler);
@@ -232,6 +216,86 @@ int main(int argc, char ** argv) {
 		return 6;
 	}
 
+	if (kgfw_sys_ui_init(&state.camera) == 0) {
+		kgfw_ecs_deinit();
+		kgfw_console_deinit();
+		textures_cleanup();
+		kgfw_graphics_deinit();
+		kgfw_audio_deinit();
+		kgfw_window_destroy(&state.window);
+		kgfw_deinit();
+		return 7;
+	}
+
+	{
+		ktga_t * tga = texture_get("blank");
+		kgfw_graphics_texture_t texture = {
+			.bitmap = tga->bitmap,
+			.width = tga->header.img_w,
+			.height = tga->header.img_h,
+
+			.fmt = KGFW_GRAPHICS_TEXTURE_FORMAT_BGRA,
+			.u_wrap = KGFW_GRAPHICS_TEXTURE_WRAP_CLAMP,
+			.v_wrap = KGFW_GRAPHICS_TEXTURE_WRAP_CLAMP,
+			.filtering = KGFW_GRAPHICS_TEXTURE_FILTERING_NEAREST,
+		};
+		state.textures[0] = texture;
+
+		tga = texture_get("one");
+		texture.bitmap = tga->bitmap;
+		texture.width = tga->header.img_w;
+		texture.height = tga->header.img_h;
+		state.textures[1] = texture;
+
+		tga = texture_get("two");
+		texture.bitmap = tga->bitmap;
+		texture.width = tga->header.img_w;
+		texture.height = tga->header.img_h;
+		state.textures[2] = texture;
+
+		tga = texture_get("three");
+		texture.bitmap = tga->bitmap;
+		texture.width = tga->header.img_w;
+		texture.height = tga->header.img_h;
+		state.textures[3] = texture;
+
+		tga = texture_get("four");
+		texture.bitmap = tga->bitmap;
+		texture.width = tga->header.img_w;
+		texture.height = tga->header.img_h;
+		state.textures[4] = texture;
+
+		tga = texture_get("five");
+		texture.bitmap = tga->bitmap;
+		texture.width = tga->header.img_w;
+		texture.height = tga->header.img_h;
+		state.textures[5] = texture;
+
+		tga = texture_get("six");
+		texture.bitmap = tga->bitmap;
+		texture.width = tga->header.img_w;
+		texture.height = tga->header.img_h;
+		state.textures[6] = texture;
+
+		tga = texture_get("seven");
+		texture.bitmap = tga->bitmap;
+		texture.width = tga->header.img_w;
+		texture.height = tga->header.img_h;
+		state.textures[7] = texture;
+
+		tga = texture_get("eight");
+		texture.bitmap = tga->bitmap;
+		texture.width = tga->header.img_w;
+		texture.height = tga->header.img_h;
+		state.textures[8] = texture;
+
+		tga = texture_get("nine");
+		texture.bitmap = tga->bitmap;
+		texture.width = tga->header.img_w;
+		texture.height = tga->header.img_h;
+		state.textures[9] = texture;
+	}
+
 	kgfw_input_key_register_callback(kgfw_key_handler);
 	kgfw_input_mouse_button_register_callback(kgfw_mouse_button_handle);
 	kgfw_input_gamepad_register_callback(kgfw_gamepad_handle);
@@ -248,21 +312,128 @@ int main(int argc, char ** argv) {
 		return 99;
 	}
 
+	storage.solutions = malloc(sizeof(unsigned int) * state.board.width * state.board.height);
+	if (storage.solutions == NULL) {
+		kgfw_logf(KGFW_LOG_SEVERITY_ERROR, "failed to malloc sudoku solutions");
+		return 99;
+	}
+	memset(storage.solutions, 0, sizeof(unsigned int) * state.board.width * state.board.height);
+
+	kgfw_graphics_mesh_t mesh = {
+		.vertices = (kgfw_graphics_vertex_t[]) {
+			{
+				.x = -1, .y = -1, .z = 0,
+				.r = 1, .g = 1, .b = 1,
+				.nx = 0, .ny = 0, .nz = 0,
+				.u = 0, .v = 0,
+			},
+			{
+				.x = -1, .y = 1, .z = 0,
+				.r = 1, .g = 1, .b = 1,
+				.nx = 0, .ny = 0, .nz = 0,
+				.u = 0, .v = 1,
+			},
+			{
+				.x = 1, .y = -1, .z = 0,
+				.r = 1, .g = 1, .b = 1,
+				.nx = 0, .ny = 0, .nz = 0,
+				.u = 1, .v = 0,
+			},
+			{
+				.x = 1, .y = 1, .z = 0,
+				.r = 1, .g = 1, .b = 1,
+				.nx = 0, .ny = 0, .nz = 0,
+				.u = 1, .v = 1,
+			},
+		},
+		.vertices_count = 4,
+
+		.indices = (unsigned int[]) {
+			1, 0, 2,
+			1, 2, 3,
+		},
+		.indices_count = 6,
+
+		.pos = {
+			0, 0, 0,
+		},
+		.rot = {
+			0, 0, 0,
+		},
+		.scale = {
+			0, 1, 1
+		},
+	};
+
+	state.selector = kgfw_graphics_mesh_new(&mesh, NULL);
+	if (state.selector == NULL) {
+		kgfw_logf(KGFW_LOG_SEVERITY_INFO, "selector creation failure");
+		return 99;
+	}
+	state.selector->transform.scale[0] = 0;
+
+	{
+		ktga_t * tga = texture_get("selector");
+		if (tga == NULL) {
+			kgfw_logf(KGFW_LOG_SEVERITY_INFO, "failed to find selector texture");
+			return 99;
+		}
+
+		kgfw_graphics_texture_t texture = {
+			.bitmap = tga->bitmap,
+			.width = tga->header.img_w,
+			.height = tga->header.img_h,
+			.fmt = KGFW_GRAPHICS_TEXTURE_FORMAT_BGRA,
+			.u_wrap = KGFW_GRAPHICS_TEXTURE_WRAP_CLAMP,
+			.v_wrap = KGFW_GRAPHICS_TEXTURE_WRAP_CLAMP,
+			.filtering = KGFW_GRAPHICS_TEXTURE_FILTERING_NEAREST,
+		};
+
+		kgfw_graphics_mesh_texture(state.selector, &texture, KGFW_GRAPHICS_TEXTURE_USE_COLOR);
+	}
+
 	for (unsigned int i = 0; i < state.board.width * state.board.height; ++i) {
 		storage.sudokus[i].entity = kgfw_entity_new(NULL);
 		if (storage.sudokus[i].entity == NULL) {
 			kgfw_logf(KGFW_LOG_SEVERITY_INFO, "sudoku %u creation failure", i);
 			return 100;
 		}
+
+		storage.sudokus[i].ui_comp = kgfw_entity_attach_component(storage.sudokus[i].entity, kgfw_sys_ui_get_uuid());
+		if (storage.sudokus[i].ui_comp == NULL) {
+			kgfw_logf(KGFW_LOG_SEVERITY_INFO, "sudoku %u ui component attachment failure", i);
+			return 100;
+		}
 		storage.sudokus[i].number = i % state.board.width + 1;
+
+		storage.sudokus[i].ui_comp->mesh = kgfw_graphics_mesh_new(&mesh, NULL);
+		kgfw_graphics_mesh_texture(storage.sudokus[i].ui_comp->mesh, &state.textures[storage.sudokus[i].number], KGFW_GRAPHICS_TEXTURE_USE_COLOR);
+
+		float w = state.board.width;
+		float h = state.board.height;
+		float nx = fmod(i, state.board.width) * 2 / state.board.width - 1;
+		float ny = (i / state.board.width + 1) / w * 2.0f - 1;
+
+		storage.sudokus[i].ui_comp->rect = (kgfw_sys_ui_rect_t) {
+			.width = 1.0f / w,
+			.height = 1.0f / h,
+			.x = nx,
+			.y = ny,
+
+			.origin = {
+				.x = -1,
+				.y = 1,
+			},
+		};
+		storage.sudokus[i].ui_comp->click = click;
 
 		if (i < state.board.width * state.board.height - 1 && i % state.board.width != state.board.width - 1) {
 			storage.sudokus[i].right = &storage.sudokus[i + 1];
 		} else {
 			storage.sudokus[i].right = NULL;
 		}
-		if (i < state.board.width * (state.board.height - 1)) {
-			storage.sudokus[i].down = &storage.sudokus[i + state.board.width];
+		if (i >= state.board.width) {
+			storage.sudokus[i].down = &storage.sudokus[i - state.board.width];
 		} else {
 			storage.sudokus[i].down = NULL;
 		}
@@ -271,52 +442,24 @@ int main(int argc, char ** argv) {
 		} else {
 			storage.sudokus[i].left = NULL;
 		}
-		if (i >= state.board.width) {
-			storage.sudokus[i].up = &storage.sudokus[i - state.board.width];
+		if (i < state.board.width * (state.board.height - 1)) {
+			storage.sudokus[i].up = &storage.sudokus[i + state.board.width];
 		} else {
 			storage.sudokus[i].up = NULL;
 		}
 	}
 
-	for (unsigned int i = 0; i < state.board.height; ++i) {
-		kgfw_logf(
-			KGFW_LOG_SEVERITY_DEBUG, "%u %u %u %u %u %u %u %u %u",
-			storage.sudokus[i * state.board.width + 0].number,
-			storage.sudokus[i * state.board.width + 1].number,
-			storage.sudokus[i * state.board.width + 2].number,
-			storage.sudokus[i * state.board.width + 3].number,
-			storage.sudokus[i * state.board.width + 4].number,
-			storage.sudokus[i * state.board.width + 5].number,
-			storage.sudokus[i * state.board.width + 6].number,
-			storage.sudokus[i * state.board.width + 7].number,
-			storage.sudokus[i * state.board.width + 8].number
-		);
-	}
-
-	for (unsigned int i = 0; i < state.board.width * state.board.height; ++i) {
-		kgfw_logf(
-			KGFW_LOG_SEVERITY_DEBUG, "%p, %p %p %p %p",
-			&storage.sudokus[i],
-			storage.sudokus[i].right, storage.sudokus[i].left,
-			storage.sudokus[i].up, storage.sudokus[i].down
-		);
-	}
-
 	sudoku_t * piece = &storage.sudokus[0];
 	while (piece != NULL) {
-			kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%p %u", piece, piece->number);
 		while (piece->right != NULL) {
 			piece = piece->right;
-			kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%p %u", piece, piece->number);
 		}
 		piece = piece->down;
 		if (piece == NULL) {
 			break;
 		}
-		kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%p %u", piece, piece->number);
 		while (piece->left != NULL) {
 			piece = piece->left;
-			kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%p %u", piece, piece->number);
 		}
 		piece = piece->down;
 	}
@@ -348,6 +491,14 @@ int main(int argc, char ** argv) {
 
 		kgfw_time_end();
 		kgfw_ecs_update();
+		if (state.selected == NULL) {
+			state.selector->transform.scale[0] = 0;
+		} else {
+			state.selector->transform.pos[0] = state.selected->ui_comp->mesh->transform.pos[0];
+			state.selector->transform.pos[1] = state.selected->ui_comp->mesh->transform.pos[1];
+			state.selector->transform.scale[0] = state.selected->ui_comp->mesh->transform.scale[0];
+			state.selector->transform.scale[1] = state.selected->ui_comp->mesh->transform.scale[1];
+		}
 
 		kgfw_input_update();
 
@@ -391,6 +542,7 @@ static void kgfw_key_handler(kgfw_input_key_enum key, unsigned char action) {
 		kgfw_logf(KGFW_LOG_SEVERITY_INFO, "console input %sabled", !enabled ? "en" : "dis");
 		kgfw_console_input_enable(!enabled);
 	}
+
 	if (key == KGFW_KEY_ESCAPE) {
 		state.exit = 1;
 	}
@@ -399,6 +551,33 @@ static void kgfw_key_handler(kgfw_input_key_enum key, unsigned char action) {
 		if (key == KGFW_KEY_R && action == 1) {
 			char * argv[3] = { "gfx", "reload", "shaders" };
 			kgfw_console_run(3, argv);
+		}
+	}
+
+	if (state.selected != NULL) {
+		if (key >= KGFW_KEY_0 && key <= KGFW_KEY_9) {
+			state.selected->number = key - KGFW_KEY_0;
+			kgfw_graphics_mesh_texture_detach(state.selected->ui_comp->mesh, KGFW_GRAPHICS_TEXTURE_USE_COLOR);
+			kgfw_graphics_mesh_texture(state.selected->ui_comp->mesh, &state.textures[state.selected->number], KGFW_GRAPHICS_TEXTURE_USE_COLOR);
+		}
+
+		if (action == 1) {
+			if (key == KGFW_KEY_LEFT && state.selected->left != NULL) {
+				state.selected = state.selected->left;
+			}
+			if (key == KGFW_KEY_RIGHT && state.selected->right != NULL) {
+				state.selected = state.selected->right;
+			}
+			if (key == KGFW_KEY_DOWN && state.selected->down != NULL) {
+				state.selected = state.selected->down;
+			}
+			if (key == KGFW_KEY_UP && state.selected->up != NULL) {
+				state.selected = state.selected->up;
+			}
+		}
+	} else {
+		if (key == KGFW_KEY_LEFT || key == KGFW_KEY_RIGHT || key == KGFW_KEY_DOWN || key == KGFW_KEY_UP) {
+			state.selected = &storage.sudokus[(state.board.width * state.board.height) / 2];
 		}
 	}
 }
@@ -934,14 +1113,17 @@ static int game_command(int argc, char ** argv) {
 
 
 /* components */
-static void player_start(player_t * self) {
-	return;
-}
-
-static void player_update(player_t * self) {
-	return;
-}
-
-static void player_destroy(player_t * self) {
-	return;
+static void click(kgfw_sys_ui_component_t * self, float x, float y) {
+	for (unsigned int i = 0; i < state.board.width * state.board.height; ++i) {
+		if (storage.sudokus[i].ui_comp == self) {
+			//kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "selected %u (%f, %f) [%f, %f] {%f, %f}", storage.sudokus[i].number, x, y, self->rect.x, self->rect.y, self->rect.width, self->rect.height);
+			if (&storage.sudokus[i] == state.selected) {
+				state.selected = NULL;
+				return;
+			}
+			state.selected = &storage.sudokus[i];
+			kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%u", state.selected->number);
+			return;
+		}
+	}
 }

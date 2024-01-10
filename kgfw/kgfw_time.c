@@ -7,9 +7,18 @@
 
 static float start = 0;
 static float end = 0;
+static float time_scale = 1;
+
+float kgfw_time_get_scale(void) {
+	return time_scale;
+}
+
+void kgfw_time_scale(float scale) {
+	time_scale = scale;
+}
 
 float kgfw_time_get(void) {
-	return (float) glfwGetTime();
+	return (float) glfwGetTime() * time_scale;
 }
 
 float kgfw_time_delta(void) {

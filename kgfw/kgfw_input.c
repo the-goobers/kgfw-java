@@ -3,7 +3,7 @@
 #include "kgfw_log.h"
 
 #define KGFW_KEY_MAX_CALLBACKS 16
-#define KGFW_MOUSE_BUTTON_MAX_CALLBACKS 16
+#define KGFW_MOUSE_BUTTON_MAX_CALLBACKS 64
 #define KGFW_GAMEPAD_MAX_CALLBACKS 16
 
 struct {
@@ -290,8 +290,9 @@ static void kgfw_glfw_mouse_buttons(GLFWwindow * window, int button, int action,
 	}
 
 	key_state.mouse[button] = (action);
+	kgfw_window_t * win = glfwGetWindowUserPointer(window);
 	for (unsigned long long int i = 0; i < key_state.mouse_callback_count; ++i) {
-		key_state.mouse_callbacks[i](button % KGFW_MOUSE_BUTTON_MAX, (action));
+		key_state.mouse_callbacks[i](win, button % KGFW_MOUSE_BUTTON_MAX, (action));
 	}
 }
 
@@ -300,9 +301,9 @@ void kgfw_input_mouse_delta(float * out_dx, float * out_dy) {
 	*out_dy = key_state.prev_mouse_y - key_state.mouse_y;
 }
 
-void kgfw_input_mouse_pos(float * out_dx, float * out_dy) {
-	*out_dx = key_state.mouse_x;
-	*out_dy = key_state.mouse_y;
+void kgfw_input_mouse_pos(float * out_x, float * out_y) {
+	*out_x = key_state.mouse_x;
+	*out_y = key_state.mouse_y;
 }
 
 void kgfw_input_mouse_scroll(float * out_dx, float * out_dy) {

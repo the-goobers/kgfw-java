@@ -6,10 +6,18 @@
 #include "kgfw_hash.h"
 #include "kgfw_transform.h"
 
+typedef void (*kgfw_system_update_f)(struct kgfw_system * self, struct kgfw_component_node * components);
+typedef void (*kgfw_system_start_f)(struct kgfw_system * self, struct kgfw_component_node * components);
+typedef void (*kgfw_system_destroy_f)(struct kgfw_system * self);
+
+typedef void (*kgfw_component_start_f)(struct kgfw_component * self);
+typedef void (*kgfw_component_update_f)(struct kgfw_component * self);
+typedef void (*kgfw_component_destroy_f)(struct kgfw_component * self);
+
 typedef struct kgfw_component {
-	void (*update)(struct kgfw_component * self);
-	void (*start)(struct kgfw_component * self);
-	void (*destroy)(struct kgfw_component * self);
+	kgfw_component_update_f update;
+	kgfw_component_start_f start;
+	kgfw_component_destroy_f destroy;
 	/* identifier for component instance */
 	kgfw_uuid_t instance_id;
 	/* id for the component type */
@@ -38,15 +46,10 @@ typedef struct kgfw_entity {
 
 /* implementation of an ECS system */
 typedef struct kgfw_system {
-	void (*update)(struct kgfw_system * self, kgfw_component_node_t * components);
-	void (*start)(struct kgfw_system * self, kgfw_component_node_t * components);
-	void (*destroy)(struct kgfw_system * self);
+	kgfw_system_update_f update;
+	kgfw_system_start_f start;
+	kgfw_system_destroy_f destroy;
 } kgfw_system_t;
-
-typedef void (*kgfw_system_update_f)(struct kgfw_system * self, kgfw_component_node_t * components);
-typedef void (*kgfw_system_start_f)(struct kgfw_system * self, kgfw_component_node_t * components);
-typedef void (*kgfw_component_start_f)(struct kgfw_component * self);
-typedef void (*kgfw_component_update_f)(struct kgfw_component * self);
 
 #define KGFW_ECS_INVALID_ID 0
 

@@ -191,7 +191,7 @@ typedef struct kgfw_gamepad {
 typedef void (*kgfw_input_key_callback)(kgfw_input_key_enum key, unsigned char action);
 
 /* takes key value and action value (0: immediate keyup, 1: immediate keydown, 2: repeated keydown, 3: repeated keyup) */
-typedef void (*kgfw_input_mouse_button_callback)(kgfw_input_mouse_button_enum buttom, unsigned char action);
+typedef void (*kgfw_input_mouse_button_callback)(kgfw_window_t * window, kgfw_input_mouse_button_enum button, unsigned char action);
 
 /* takes key value and action value (0: immediate keyup, 1: immediate keydown, 2: repeated keydown, 3: repeated keyup) */
 typedef void (*kgfw_input_gamepad_callback)(kgfw_gamepad_t * gamepad);
@@ -210,7 +210,7 @@ KGFW_PUBLIC void kgfw_input_mouse_delta(float * out_dx, float * out_dy);
 /* outputs the scroll delta */
 KGFW_PUBLIC void kgfw_input_mouse_scroll(float * out_dx, float * out_dy);
 /* outputs the current mouse position */
-KGFW_PUBLIC void kgfw_input_mouse_pos(float * out_dx, float * out_dy);
+KGFW_PUBLIC void kgfw_input_mouse_pos(float * out_x, float * out_y);
 /* returns if button is currently pressed */
 KGFW_PUBLIC unsigned char kgfw_input_mouse_button(kgfw_input_mouse_button_enum button);
 /* register a callback for key input */
