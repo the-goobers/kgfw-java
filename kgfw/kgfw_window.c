@@ -5,6 +5,7 @@
 #include "kgfw.h"
 #include "kgfw_window.h"
 #include "kgfw_input.h"
+#include "kgfw_graphics.h"
 #include <GLFW/glfw3.h>
 
 static void kgfw_glfw_window_close(GLFWwindow * glfw_window);
@@ -79,8 +80,10 @@ static void kgfw_glfw_window_resize(GLFWwindow * glfw_window, int width, int hei
 		return;
 	}
 
+	kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%i, %i", width, height);
 	window->width = (unsigned int) width;
 	window->height = (unsigned int) height;
+	kgfw_graphics_viewport(window->width, window->height);
 }
 
 static void kgfw_glfw_window_focus(GLFWwindow * glfw_window, int focused) {

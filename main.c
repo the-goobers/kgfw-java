@@ -33,6 +33,7 @@ struct {
 	struct {
 		unsigned int width;
 		unsigned int height;
+		unsigned int hint_count;
 	} board;
 	struct sudoku * selected;
 	kgfw_graphics_mesh_node_t * selector;
@@ -62,6 +63,7 @@ struct {
 	.board = {
 		.width = 9,
 		.height = 9,
+		.hint_count = 30,
 	},
 	.selected = NULL,
 	.selector = NULL,
@@ -85,6 +87,7 @@ typedef struct sudoku {
 	kgfw_entity_t * entity;
 	kgfw_sys_ui_component_t * ui_comp;
 	unsigned int number;
+	unsigned char locked;
 
 	struct sudoku * right;
 	struct sudoku * left;
@@ -100,7 +103,7 @@ struct {
 	unsigned long long int meshes_count;
 	kgfw_hash_t mesh_hashes[STORAGE_MAX_MESHES];
 	sudoku_t * sudokus;
-	unsigned int * solutions;
+	unsigned int * solution;
 } static storage = {
 	{ 0 },
 	0,
@@ -311,13 +314,73 @@ int main(int argc, char ** argv) {
 		kgfw_logf(KGFW_LOG_SEVERITY_ERROR, "failed to malloc sudoku board");
 		return 99;
 	}
+	memset(storage.sudokus, 0, sizeof(sudoku_t) * state.board.width * state.board.height);
 
-	storage.solutions = malloc(sizeof(unsigned int) * state.board.width * state.board.height);
-	if (storage.solutions == NULL) {
-		kgfw_logf(KGFW_LOG_SEVERITY_ERROR, "failed to malloc sudoku solutions");
+	storage.solution = malloc(sizeof(unsigned int) * state.board.width * state.board.height);
+	if (storage.solution == NULL) {
+		kgfw_logf(KGFW_LOG_SEVERITY_ERROR, "failed to malloc sudoku solution");
 		return 99;
 	}
-	memset(storage.solutions, 0, sizeof(unsigned int) * state.board.width * state.board.height);
+	memset(storage.solution, 0, sizeof(unsigned int) * state.board.width * state.board.height);
+
+	{
+		sranddev();
+
+		unsigned int solutions[][81] = {
+			{
+				2, 3, 4, 9, 7, 6, 8, 5, 1,
+				9, 6, 7, 5, 8, 1, 2, 3, 4,
+				1, 8, 5, 2, 3, 4, 6, 9, 7,
+				4, 2, 9, 6, 5, 7, 3, 1, 8,
+				8, 7, 1, 4, 2, 3, 5, 6, 9,
+				6, 5, 3, 1, 9, 8, 7, 4, 2,
+				3, 1, 6, 7, 4, 2, 9, 8, 5,
+				5, 4, 2, 8, 6, 9, 1, 7, 3,
+				7, 9, 8, 3, 1, 5, 4, 2, 6,
+			},
+			{
+				1, 2, 3, 4, 5, 6, 7, 8, 9,
+				7, 8, 9, 1, 2, 3, 4, 5, 6,
+				4, 5, 6, 7, 8, 9, 1, 2, 3,
+				3, 1, 2, 8, 4, 5, 9, 6, 7,
+				6, 9, 7, 3, 1, 2, 8, 4, 5,
+				8, 4, 5, 6, 9, 7, 3, 1, 2,
+				2, 3, 1, 5, 7, 4, 6, 9, 8,
+				9, 6, 8, 2, 3, 1, 5, 7, 4,
+				5, 7, 4, 9, 6, 8, 2, 3, 1,
+			},
+			{
+				6, 2, 1, 7, 5, 9, 8, 3, 4,
+				4, 9, 7, 6, 8, 3, 1, 5, 2,
+				3, 5, 8, 1, 2, 4, 9, 6, 7,
+				2, 6, 4, 5, 9, 1, 7, 8, 3,
+				8, 3, 9, 4, 6, 7, 2, 1, 5,
+				1, 7, 5, 2, 3, 8, 4, 9, 6,
+				9, 8, 2, 3, 7, 5, 6, 4, 1,
+				5, 1, 6, 8, 4, 2, 3, 7, 9,
+				7, 4, 3, 9, 1, 6, 5, 2, 8,
+			}
+		};
+
+		memcpy(storage.solution, solutions[rand() % (sizeof(solutions) / sizeof(solutions[0]))], sizeof(unsigned int) * state.board.width * state.board.height);
+	}
+
+	{
+		sranddev();
+
+		if (state.board.hint_count > (state.board.width * state.board.height)) {
+			state.board.hint_count = (state.board.width * state.board.height);
+		}
+
+		for (unsigned int i = 0; i < state.board.hint_count; ++i) {
+			unsigned int r = rand() % (state.board.width * state.board.height);
+			while (storage.sudokus[r].number == storage.solution[r]) {
+				r = rand() % (state.board.width * state.board.height);
+			}
+			storage.sudokus[r].number = storage.solution[r];
+			storage.sudokus[r].locked = 1;
+		}
+	}
 
 	kgfw_graphics_mesh_t mesh = {
 		.vertices = (kgfw_graphics_vertex_t[]) {
@@ -404,7 +467,8 @@ int main(int argc, char ** argv) {
 			kgfw_logf(KGFW_LOG_SEVERITY_INFO, "sudoku %u ui component attachment failure", i);
 			return 100;
 		}
-		storage.sudokus[i].number = i % state.board.width + 1;
+		//storage.sudokus[i].number = 0;
+		//storage.sudokus[i].locked = 0;
 
 		storage.sudokus[i].ui_comp->mesh = kgfw_graphics_mesh_new(&mesh, NULL);
 		kgfw_graphics_mesh_texture(storage.sudokus[i].ui_comp->mesh, &state.textures[storage.sudokus[i].number], KGFW_GRAPHICS_TEXTURE_USE_COLOR);
@@ -412,13 +476,13 @@ int main(int argc, char ** argv) {
 		float w = state.board.width;
 		float h = state.board.height;
 		float nx = fmod(i, state.board.width) * 2 / state.board.width - 1;
-		float ny = (i / state.board.width + 1) / w * 2.0f - 1;
+		float ny = (i / state.board.width) / w * 2.0f - 1;
 
 		storage.sudokus[i].ui_comp->rect = (kgfw_sys_ui_rect_t) {
 			.width = 1.0f / w,
 			.height = 1.0f / h,
 			.x = nx,
-			.y = ny,
+			.y = -ny,
 
 			.origin = {
 				.x = -1,
@@ -432,8 +496,8 @@ int main(int argc, char ** argv) {
 		} else {
 			storage.sudokus[i].right = NULL;
 		}
-		if (i >= state.board.width) {
-			storage.sudokus[i].down = &storage.sudokus[i - state.board.width];
+		if (i < state.board.width * (state.board.height - 1)) {
+			storage.sudokus[i].down = &storage.sudokus[i + state.board.width];
 		} else {
 			storage.sudokus[i].down = NULL;
 		}
@@ -442,8 +506,8 @@ int main(int argc, char ** argv) {
 		} else {
 			storage.sudokus[i].left = NULL;
 		}
-		if (i < state.board.width * (state.board.height - 1)) {
-			storage.sudokus[i].up = &storage.sudokus[i + state.board.width];
+		if (i >= state.board.width) {
+			storage.sudokus[i].up = &storage.sudokus[i - state.board.width];
 		} else {
 			storage.sudokus[i].up = NULL;
 		}
@@ -471,15 +535,14 @@ int main(int argc, char ** argv) {
 			break;
 		}
 
-		if (kgfw_window_update(&state.window) != 0) {
-			state.exit = 1;
-			break;
-		}
-
 		{
 			unsigned int w = state.window.width;
 			unsigned int h = state.window.height;
 			if (kgfw_update() != 0) {
+				state.exit = 1;
+				break;
+			}
+			if (kgfw_window_update(&state.window) != 0) {
 				state.exit = 1;
 				break;
 			}
@@ -555,13 +618,13 @@ static void kgfw_key_handler(kgfw_input_key_enum key, unsigned char action) {
 	}
 
 	if (state.selected != NULL) {
-		if (key >= KGFW_KEY_0 && key <= KGFW_KEY_9) {
-			state.selected->number = key - KGFW_KEY_0;
-			kgfw_graphics_mesh_texture_detach(state.selected->ui_comp->mesh, KGFW_GRAPHICS_TEXTURE_USE_COLOR);
-			kgfw_graphics_mesh_texture(state.selected->ui_comp->mesh, &state.textures[state.selected->number], KGFW_GRAPHICS_TEXTURE_USE_COLOR);
-		}
-
 		if (action == 1) {
+			if (key >= KGFW_KEY_0 && key <= KGFW_KEY_9 && !state.selected->locked) {
+				state.selected->number = key - KGFW_KEY_0;
+				kgfw_graphics_mesh_texture_detach(state.selected->ui_comp->mesh, KGFW_GRAPHICS_TEXTURE_USE_COLOR);
+				kgfw_graphics_mesh_texture(state.selected->ui_comp->mesh, &state.textures[state.selected->number], KGFW_GRAPHICS_TEXTURE_USE_COLOR);
+			}
+
 			if (key == KGFW_KEY_LEFT && state.selected->left != NULL) {
 				state.selected = state.selected->left;
 			}
@@ -573,6 +636,12 @@ static void kgfw_key_handler(kgfw_input_key_enum key, unsigned char action) {
 			}
 			if (key == KGFW_KEY_UP && state.selected->up != NULL) {
 				state.selected = state.selected->up;
+			}
+			if (key == KGFW_KEY_L) {
+				state.selected->locked = 1;
+			}
+			if (key == KGFW_KEY_U) {
+				state.selected->locked = 0;
 			}
 		}
 	} else {
@@ -1115,7 +1184,7 @@ static int game_command(int argc, char ** argv) {
 /* components */
 static void click(kgfw_sys_ui_component_t * self, float x, float y) {
 	for (unsigned int i = 0; i < state.board.width * state.board.height; ++i) {
-		if (storage.sudokus[i].ui_comp == self) {
+		if (storage.sudokus[i].ui_comp == self && !storage.sudokus[i].locked) {
 			//kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "selected %u (%f, %f) [%f, %f] {%f, %f}", storage.sudokus[i].number, x, y, self->rect.x, self->rect.y, self->rect.width, self->rect.height);
 			if (&storage.sudokus[i] == state.selected) {
 				state.selected = NULL;
