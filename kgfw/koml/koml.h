@@ -1,6 +1,8 @@
 #ifndef KRISVERS_KOML_H
 #define KRISVERS_KOML_H
 
+#include "../kgfw_defines.h"
+
 typedef enum koml_type {
 	KOML_TYPE_UNKNOWN = 0,
 	KOML_TYPE_INT = 1,
@@ -42,11 +44,11 @@ typedef struct koml_table {
 	unsigned long long int length;
 } koml_table_t;
 
-void koml_symbol_print(koml_symbol_t * symbol);
-void koml_table_print(koml_table_t * table);
-int koml_table_load(koml_table_t * out_table, char * buffer, unsigned long long int buffer_length);
-koml_symbol_t * koml_table_symbol(koml_table_t * table, char * name);
-koml_symbol_t * koml_table_symbol_word(koml_table_t * table, char * name, unsigned long long int name_length);
-int koml_table_destroy(koml_table_t * table);
+KGFW_PUBLIC void koml_symbol_print(koml_symbol_t * symbol);
+KGFW_PUBLIC void koml_table_print(koml_table_t * table);
+KGFW_PUBLIC int koml_table_load(koml_table_t * out_table, char * buffer, unsigned long long int buffer_length);
+KGFW_PUBLIC koml_symbol_t * koml_table_symbol(koml_table_t * table, char * name);
+KGFW_PUBLIC koml_symbol_t * koml_table_symbol_word(koml_table_t * table, char * name, unsigned long long int name_length);
+KGFW_PUBLIC int koml_table_destroy(koml_table_t * table);
 
 #endif

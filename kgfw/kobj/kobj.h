@@ -20,7 +20,7 @@ typedef struct kobj {
 	unsigned int fcount;
 } kobj_t;
 
-int kobj_load(kobj_t * out_obj, void * buffer, unsigned long long int length);
-void kobj_destroy(kobj_t * obj);
+KGFW_PUBLIC int kobj_load(kobj_t * out_obj, void * buffer, unsigned long long int length);
+KGFW_PUBLIC void kobj_destroy(kobj_t * obj);
 
 #endif

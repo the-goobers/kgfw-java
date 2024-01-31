@@ -1,6 +1,8 @@
 #ifndef KRISVERS_KWAV_H
 #define KRISVERS_KWAV_H
 
+#include "../kgfw_defines.h"
+
 typedef struct kwav_header {
 	unsigned int filesize;
 	unsigned short type;
@@ -15,6 +17,6 @@ typedef struct kwav {
 	void * data;
 } kwav_t;
 
-int kwav_load(kwav_t * out_kwav, unsigned char * buffer, unsigned long long int buffer_length);
+KGFW_PUBLIC int kwav_load(kwav_t * out_kwav, unsigned char * buffer, unsigned long long int buffer_length);
 
 #endif

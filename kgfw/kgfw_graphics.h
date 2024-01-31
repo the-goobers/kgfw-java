@@ -134,5 +134,6 @@ KGFW_PUBLIC void kgfw_graphics_mesh_texture_detach(kgfw_graphics_mesh_node_t * m
 KGFW_PUBLIC void kgfw_graphics_deinit(void);
 KGFW_PUBLIC void kgfw_graphics_settings_set(kgfw_graphics_settings_action_enum action, unsigned int settings);
 KGFW_PUBLIC unsigned int kgfw_graphics_settings_get(void);
+KGFW_PUBLIC void kgfw_graphics_clear_color(float red, float green, float blue);
 
 #endif

@@ -72,11 +72,12 @@ int kgfw_audio_init(void) {
 	} file = {
 			NULL, 0
 	};
+
 	{
 		FILE * fp = fopen("./assets/config.koml", "rb");
 		if (fp == NULL) {
 			kgfw_logf(KGFW_LOG_SEVERITY_ERROR, "failed to open \"config.koml\"");
-			return 1;
+			return 0;
 		}
 
 		fseek(fp, 0L, SEEK_END);

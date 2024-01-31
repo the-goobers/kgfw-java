@@ -80,7 +80,6 @@ static void kgfw_glfw_window_resize(GLFWwindow * glfw_window, int width, int hei
 		return;
 	}
 
-	kgfw_logf(KGFW_LOG_SEVERITY_DEBUG, "%i, %i", width, height);
 	window->width = (unsigned int) width;
 	window->height = (unsigned int) height;
 	kgfw_graphics_viewport(window->width, window->height);
