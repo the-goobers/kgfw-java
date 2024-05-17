@@ -92,9 +92,9 @@ int kgfw_ecs_init(void) {
 	}
 
 	memset(default_system, 0, sizeof(kgfw_system_t));
-	default_system->update = default_system_update;
-	default_system->start = default_system_start;
-	default_system->destroy = default_system_destroy;
+	default_system->update = &default_system_update;
+	default_system->start = &default_system_start;
+	default_system->destroy = &default_system_destroy;
 
 	if (default_system_construct("default", sizeof(kgfw_system_t), default_system) != 0) {
 		free(default_system);

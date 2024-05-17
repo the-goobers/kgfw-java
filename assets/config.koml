@@ -1,5 +1,10 @@
 [audio]
 
 [textures]
+as files = "assets/textures/sudoku/selector.tga", "assets/textures/sudoku/blank.tga", "assets/textures/sudoku/one.tga", "assets/textures/sudoku/two.tga", "assets/textures/sudoku/three.tga", "assets/textures/sudoku/four.tga", "assets/textures/sudoku/five.tga", "assets/textures/sudoku/six.tga", "assets/textures/sudoku/seven.tga", "assets/textures/sudoku/eight.tga", "assets/textures/sudoku/nine.tga";
+as names = "selector", "blank", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine";
 
 [meshes]
+as files = "assets/meshes/cow.obj";
+as names = "cow";
+

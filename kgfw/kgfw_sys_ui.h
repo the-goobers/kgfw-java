@@ -5,6 +5,8 @@
 #include "kgfw_window.h"
 #include "kgfw_graphics.h"
 
+typedef struct kgfw_sys_ui_component kgfw_sys_ui_component_t;
+
 typedef void (*kgfw_sys_ui_click_f)(struct kgfw_sys_ui_component * self, float x, float y);
 
 typedef struct kgfw_sys_ui_rect {
@@ -19,7 +21,7 @@ typedef struct kgfw_sys_ui_rect {
 	} origin;
 } kgfw_sys_ui_rect_t;
 
-typedef struct kgfw_sys_ui_component {
+struct kgfw_sys_ui_component {
 	kgfw_component_t base;
 	kgfw_sys_ui_click_f click;
 
@@ -27,7 +29,7 @@ typedef struct kgfw_sys_ui_component {
 	unsigned char is_clipspace;
 
 	kgfw_graphics_mesh_node_t * mesh;
-} kgfw_sys_ui_component_t;
+};
 
 kgfw_uuid_t kgfw_sys_ui_init(kgfw_camera_t * camera);
 kgfw_uuid_t kgfw_sys_ui_get_uuid(void);

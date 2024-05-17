@@ -6,6 +6,10 @@
 #include "kgfw_hash.h"
 #include "kgfw_transform.h"
 
+typedef struct kgfw_system kgfw_system_t;
+typedef struct kgfw_component_node kgfw_component_node_t;
+typedef struct kgfw_component kgfw_component_t;
+
 typedef void (*kgfw_system_update_f)(struct kgfw_system * self, struct kgfw_component_node * components);
 typedef void (*kgfw_system_start_f)(struct kgfw_system * self, struct kgfw_component_node * components);
 typedef void (*kgfw_system_destroy_f)(struct kgfw_system * self);
@@ -14,7 +18,7 @@ typedef void (*kgfw_component_start_f)(struct kgfw_component * self);
 typedef void (*kgfw_component_update_f)(struct kgfw_component * self);
 typedef void (*kgfw_component_destroy_f)(struct kgfw_component * self);
 
-typedef struct kgfw_component {
+struct kgfw_component {
 	kgfw_component_update_f update;
 	kgfw_component_start_f start;
 	kgfw_component_destroy_f destroy;
@@ -23,12 +27,12 @@ typedef struct kgfw_component {
 	/* id for the component type */
 	kgfw_uuid_t type_id;
 	struct kgfw_entity * entity;
-} kgfw_component_t;
+};
 
-typedef struct kgfw_component_node {
+struct kgfw_component_node {
 	kgfw_component_t * component;
 	struct kgfw_component_node * next;
-} kgfw_component_node_t;
+};
 
 typedef struct kgfw_component_collection {
 	unsigned long long int count;
@@ -45,11 +49,11 @@ typedef struct kgfw_entity {
 } kgfw_entity_t;
 
 /* implementation of an ECS system */
-typedef struct kgfw_system {
+struct kgfw_system {
 	kgfw_system_update_f update;
 	kgfw_system_start_f start;
 	kgfw_system_destroy_f destroy;
-} kgfw_system_t;
+};
 
 #define KGFW_ECS_INVALID_ID 0
 
