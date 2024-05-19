@@ -633,6 +633,7 @@ static int default_system_construct(const char * name, unsigned long long int sy
 	if (data == NULL) {
 		return 2;
 	}
+
 	memcpy(data, system_data, system_size);
 	kgfw_system_t ** datas = realloc(state.systems.datas, sizeof(kgfw_system_t *) * (state.systems.count + 1));
 	if (datas == NULL) {
@@ -674,8 +675,7 @@ static int default_system_construct(const char * name, unsigned long long int sy
 		}
 		sprintf((char *) n, "System 0x%llx", id);
 		((char *) n)[len] = '\0';
-	}
-	else {
+	} else {
 		unsigned long long int len = strlen(name);
 		n = malloc(sizeof(char) * (len + 1));
 		if (n == NULL) {
@@ -702,6 +702,5 @@ static int default_system_construct(const char * name, unsigned long long int sy
 	}
 
 	++state.systems.count;
-
 	return 0;
 }

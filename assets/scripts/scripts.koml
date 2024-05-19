@@ -1,0 +1,3 @@
+[scripts]
+as classpaths = "scripts/game/Test";
+s static = "Init";
