@@ -1177,9 +1177,43 @@ JNIEXPORT jobject JNICALL Java_kgfw_KGFW_newEntity(JNIEnv* env, jobject obj, jst
 		return NULL;
 	}
 
-	jobject entity = (*env)->AllocObject(env, );
+	jclass entity_class = (*env)->FindClass(env, "kgfw/Entity");
+	if (entity_class == NULL) {
+		throw_jni_exception(env, "java/lang/ClassNotFoundException", "Failed to find kgfw.Entity class");
+		return NULL;
+	}
 
-	return NULL;
+	jobject entity = (*env)->AllocObject(env, entity_class);
+	if (entity == NULL) {
+		throw_jni_exception(env, "java/lang/RuntimeException", "Failed to create new entity");
+		return NULL;
+	}
+
+	jfieldID handle_field = (*env)->GetFieldID(env, entity_class, "handle", "J");
+	if (handle_field == NULL) {
+		throw_jni_exception(env, "java/lang/NoSuchFieldError", "Failed to find kgfw.Entity handle field");
+		return NULL;
+	}
+
+	(*env)->SetLongField(env, entity, handle_field, (jlong) kgfw_entity);
+	return entity;
+}
+
+JNIEXPORT void JNICALL Java_kgfw_KGFW_destroyEntity(JNIEnv* env, jobject obj, jobject entity) {
+	if (entity == NULL) {
+		throw_jni_exception(env, "java/lang/IllegalArgumentException", "Entity argument is invalid");
+		return;
+	}
+
+	jclass entity_class = (*env)->GetObjectClass(env, entity);
+	jfieldID handle_field = (*env)->GetFieldID(env, entity_class, "handle", "J");
+	if (handle_field == NULL) {
+		throw_jni_exception(env, "java/lang/NoSuchFieldError", "kgfw.Entity handle field not found");
+		return;
+	}
+
+	jlong handle = (*env)->GetLongField(env, entity, handle_field);
+	kgfw_entity_destroy((kgfw_entity_t*) handle);
 }
 
 JNIEXPORT jobject JNICALL Java_kgfw_KGFW_copyEntity(JNIEnv* env, jobject obj, jstring string, jobject sourceEntity);
@@ -1195,5 +1229,3 @@ JNIEXPORT jobject JNICALL Java_kgfw_KGFW_entityAttachComponent__Lkgfw_Entity_2Lj
 }
 
 JNIEXPORT jobject JNICALL Java_kgfw_KGFW_entityAttachComponent__Lkgfw_Entity_2J(JNIEnv* env, jobject obj, jobject entity, jlong componentID);
-
-JNIEXPORT void JNICALL Java_kgfw_KGFW_destroyComponent(JNIEnv* env, jobject obj, jobject component);
