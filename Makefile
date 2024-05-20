@@ -1,5 +1,6 @@
 mac:
-	clang main.c $(shell find ./lib/src -type f -name "*.c") $(shell find ./kgfw -type f -name "*.c") -o program -Wno-deprecated-declarations -Ilib/include -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/darwin -Llib/mac -lglfw3 -framework Cocoa -framework IOKit -framework OpenGL -framework OpenAL -lm -DKGFW_DEBUG -DKGFW_OPENGL=33 -Wno-visibility -Wno-incompatible-pointer-types
+	clang -fPIC -shared $(shell find ./lib/src -type f -name "*.c") $(shell find ./kgfw -type f -name "*.c") -o libkgfw.dylib -Ilib/include -Llib/mac -lglfw3 -framework OpenAL -framework Cocoa -framework IOKit -lm -DKGFW_OPENGL=33 -DKGFW_DEBUG -Wno-deprecated-declarations
+	clang main.c -o program -Ilib/include -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/darwin -L$(JAVA_HOME)/lib/server -L$(JAVA_HOME)/lib -ljvm -ljava -L. -lkgfw
 
 linux:
 	clang -fPIC -shared $(shell find ./lib/src -type f -name "*.c") $(shell find ./kgfw -type f -name "*.c") -o libkgfw.so -Ilib/include -lglfw -lGL -lopenal -lm -DKGFW_OPENGL=33 -DKGFW_DEBUG
