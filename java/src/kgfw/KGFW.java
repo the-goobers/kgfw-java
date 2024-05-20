@@ -3,8 +3,7 @@ package kgfw;
 public class KGFW {
     static {
         try {
-            System.loadLibrary("kgfw");
-            System.loadLibrary("kgfwjni");
+            System.loadLibrary("kgfwengine");
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Failed to load KGFW lib");
@@ -27,4 +26,14 @@ public class KGFW {
     /* kgfw_log */
     public static native void logc(int severity, char character);
     public static native void log(int severity, String message);
+
+    /* kgfw_ecs */
+    public static native Entity newEntity(String name);
+    public static native Entity copyEntity(String name, Entity sourceEntity);
+    public static native Entity findEntity(String name);
+    public static native Entity findEntity(long instanceID);
+    public static native Component entityGetComponent(Entity entity, long componentID);
+    public static native Component entityAttachComponent(Entity entity, String componentName);
+    public static native Component entityAttachComponent(Entity entity, long componentID);
+    public static native void destroyComponent(Component component);
 }
